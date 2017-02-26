@@ -22,7 +22,8 @@ def main():
             step = np.append(step, action)
             sample = np.vstack((sample, step))
         data = np.vstack((data, sample.reshape(1, nb_steps, state_dim)))
-    np.savetxt('dataset_{}.csv'.format(exp[env_id]), data, delimiter=',')
+    np.savetxt('dataset.csv', data.flatten(), delimiter=',', header=str(data.shape))
+    np.savetxt('dataset_{}.csv'.format(exp[env_id][:-3]), data.flatten(), delimiter=',', header=str(data.shape))
 
 if __name__ == '__main__':
     main()
