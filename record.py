@@ -1,13 +1,14 @@
 import numpy as np
-import gym, os
+import gym
 from tqdm import tqdm
 
-exp = ['CartPole-v0', 'MountainCar-v0', 'SpaceInvaders-v0']
+exp = ['CartPole-v0','Pendulum-v0', 'MountainCar-v0', 'SpaceInvaders-v0']
 nb_samples = 2000
 nb_steps = 100
 
 def main():
-    env = gym.make(exp[0])
+    env_id = 0
+    env = gym.make(exp[env_id])
     state_dim = len(env.reset()) + 1
 
     data = np.array([]).reshape(0, nb_steps, state_dim)
@@ -21,7 +22,7 @@ def main():
             step = np.append(step, action)
             sample = np.vstack((sample, step))
         data = np.vstack((data, sample.reshape(1, nb_steps, state_dim)))
-    np.savetxt('dataset.csv', data, delimiter=',')
+    np.savetxt('dataset_{}.csv'.format(exp[env_id]), data, delimiter=',')
 
 if __name__ == '__main__':
     main()
