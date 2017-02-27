@@ -1,4 +1,3 @@
-import gym
 import numpy as np
 from ast import literal_eval as make_tuple
 

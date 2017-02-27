@@ -55,7 +55,8 @@ class CartPoleModEnv(gym.Env):
         self.reset()
         if self.state.shape == state.shape:
             self.state = state
-        logger.error("Parameter state does not have same dimensions as this environment state.")
+        else:
+            logger.error("Parameter state does not have same dimensions as this environment state.")
 
     def _step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))

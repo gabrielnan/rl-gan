@@ -1,3 +1,4 @@
 *.swp
 .idea
-.csv
+*.csv
+__pycache__
