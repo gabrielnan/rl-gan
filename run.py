@@ -1,7 +1,13 @@
-import numpy as np, argparse, os, gym, gan
-from gan import check_dirs
 from ast import literal_eval as make_tuple
+
+import argparse
+import gan
+import gym
+import numpy as np
+import os
 from tqdm import tqdm
+
+from gan import check_dirs
 
 exp = ['CartPole-v0', 'Pendulum-v0', 'MountainCar-v0', 'SpaceInvaders-v0']
 
@@ -26,6 +32,7 @@ def create_set_state_method(cls):
             self.state = state
         else:
             cls.logger.error('Parameter state does not have same dimensions as this environment state.')
+
     cls.set_state = set_state
 
 
@@ -51,6 +58,7 @@ def compute_error(env, sample):
 
 def state_error(true_state, pred_state):
     return np.abs(true_state - pred_state)
+
 
 def format_dataset_name(env_name, shape):
     return '{}_{}_dataset.csv'.format(env_name, shape)
@@ -92,7 +100,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, default='CartPole-v0')
     parser.add_argument('--batch_size', type=int)
-    parser.add_argument('--data', type=str, default='dataset.csv')
+    parser.add_argument('--data', type=str, default='datasets/dataset.csv')
     parser.add_argument('--nb_samples', type=int, default=500)
     parser.add_argument('--nb_steps', type=int, default=10)
     return parser.parse_args()
@@ -100,5 +108,5 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
-    # main(args)
-    record(args.nb_samples, args.nb_steps, args.env)
+    main(args)
+    # record(args.nb_samples, args.nb_steps, args.env)

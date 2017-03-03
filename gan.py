@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from keras.models import Sequential
-from keras.layers import Dense, Reshape, BatchNormalization, Convolution1D
+from keras.layers import Dense, Reshape, BatchNormalization, Convolution1D, UpSampling2D, Convolution2D, UpSampling1D
 from keras.layers.core import Activation, Flatten
 from keras.optimizers import SGD
 
@@ -16,19 +16,23 @@ def generator_conv_model(nb_steps, state_dim, noise_dim):
     model = Sequential()
     model.add(Dense(input_dim=noise_dim, output_dim=50))
     model.add(Activation('tanh'))
-    model.add(Dense(nb_steps * state_dim))
+    model.add(Dense(5 * nb_steps * state_dim))
     model.add(BatchNormalization())
     model.add(Activation('tanh'))
+    model.add(Reshape((5, nb_steps, state_dim), input_shape=(5 * nb_steps * state_dim,)))
+    model.add(Convolution2D(20, conv_length, 1, border_mode='same'))
+    model.add(Activation('tanh'))
+    model.add(Convolution2D(1, conv_length, 1, border_mode='same'))
+    model.add(Activation('tanh'))
     model.add(Reshape((nb_steps, state_dim), input_shape=(nb_steps * state_dim,)))
-    model.add(Convolution1D(100, conv_length, border_mode='same'))
-    model.add(Activation('tanh'))
-    model.add(Convolution1D(1, conv_length, border_mode='same'))
-    model.add(Activation('tanh'))
+    # print model.summary()
 
     optimizer = SGD(lr=0.005, momentum=0.9, nesterov=True)
     model.compile(loss='binary_crossentropy', optimizer=optimizer)
     return model
 
+# if __name__ == '__main__':
+#     generator_conv_model(50, 5, 25)
 
 def generator_dense_model(nb_steps, state_dim):
     pass
@@ -36,17 +40,19 @@ def generator_dense_model(nb_steps, state_dim):
 
 def discriminator_conv_model(nb_steps, state_dim):
     model = Sequential()
-    model.add(Convolution1D(50, conv_length, border_mode='same', input_shape=(nb_steps, state_dim)))
+    model.add(Reshape((1, nb_steps, state_dim), input_shape=(nb_steps, state_dim)))
+    model.add(Convolution2D(10, conv_length, 1, border_mode='same', input_shape=(1, nb_steps, state_dim)))
     model.add(Activation('tanh'))
     # model.add(MaxPooling1D(pool_length=conv_length))
-    model.add(Convolution1D(75, conv_length))
+    model.add(Convolution2D(10, conv_length, 1))
     model.add(Activation('tanh'))
     # model.add(MaxPooling1D(pool_length=conv_length))
     model.add(Flatten())
-    model.add(Dense(100))
+    model.add(Dense(50))
     model.add(Activation('tanh'))
     model.add(Dense(1))
     model.add(Activation('sigmoid'))
+    print model.summary()
 
     optimizer = SGD(lr=0.005, momentum=0.9, nesterov=True)
     model.compile(loss='binary_crossentropy', optimizer=optimizer)
@@ -79,7 +85,7 @@ def plot_loss(losses):
     plt.show()
 
 
-def get_noise(batch_size, noise_dim=100):
+def get_noise(batch_size, noise_dim):
     return np.random.uniform(-1, 1, size=[batch_size, noise_dim])
 
 
@@ -92,7 +98,7 @@ def pre_train_discriminator(data, generator, discriminator, batch_size=50):
     discriminator.fit(in_batch, out_batch, nb_epoch=1, batch_size=128)
 
 
-def get_trained_generator(data, batch_size=50, nb_epoch=100, plt_freq=25, save_freq=10, noise_dim=75):
+def get_trained_generator(data, batch_size=50, nb_epoch=100, plt_freq=25, save_freq=10, noise_dim=25):
     # define loss lists
     losses = {'d': [], 'g': []}
     nb_samples, nb_steps, state_dim = data.shape
@@ -118,7 +124,7 @@ def get_trained_generator(data, batch_size=50, nb_epoch=100, plt_freq=25, save_f
     for epoch in tqdm(range(initial_epoch, nb_epoch)):
 
         # Generate batch
-        noise = get_noise(batch_size)
+        noise = get_noise(batch_size, noise_dim)
         generated_batch = generator.predict(noise, verbose=0)
 
         # Sample batch
@@ -134,7 +140,7 @@ def get_trained_generator(data, batch_size=50, nb_epoch=100, plt_freq=25, save_f
 
         # Train generator inside the GAN
         discriminator.trainable = False
-        noise = get_noise(batch_size)
+        noise = get_noise(batch_size, noise_dim)
         g_loss = gan.train_on_batch(noise, [1] * batch_size)
         losses['g'].append(g_loss)
         discriminator.trainable = True
