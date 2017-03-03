@@ -1,19 +1,18 @@
-import argparse
+import numpy as np, argparse, os, gym, gan
+from gan import check_dirs
 from ast import literal_eval as make_tuple
 from tqdm import tqdm
-import cartpoleMod
-import gym
-import numpy as np
-import gan
 
 exp = ['CartPole-v0', 'Pendulum-v0', 'MountainCar-v0', 'SpaceInvaders-v0']
 
 
 def main(args):
     data = read(args.data)
-    sample = data[0]
     env = gym.make(args.env)
     create_set_state_method(env.__class__)
+
+    gen = gan.Generator(data)
+    sample = gen.generate(1)
 
     env.reset()
     total_error = compute_error(env, sample)
@@ -28,10 +27,6 @@ def create_set_state_method(cls):
         else:
             cls.logger.error('Parameter state does not have same dimensions as this environment state.')
     cls.set_state = set_state
-
-
-def main_record():
-    record()
 
 
 def get_generator(data):
@@ -57,8 +52,17 @@ def compute_error(env, sample):
 def state_error(true_state, pred_state):
     return np.abs(true_state - pred_state)
 
+def format_dataset_name(env_name, shape):
+    return '{}_{}_dataset.csv'.format(env_name, shape)
 
-def record(nb_samples=2000, nb_steps=100, env_name='CartPole-v0'):
+
+def record(nb_samples, nb_steps, env_name):
+    # Check for directories
+    check_dirs('datasets')
+    dataset_filename = 'datasets/' + format_dataset_name(env_name, (nb_samples, nb_steps))
+    if os.path.isfile(dataset_filename):
+        pass
+
     env = gym.make(env_name)
     state_dim = len(env.reset()) + 1
 
@@ -73,14 +77,14 @@ def record(nb_samples=2000, nb_steps=100, env_name='CartPole-v0'):
             sample = np.vstack((sample, step))
             step = env.step(action)[0]
         data = np.vstack((data, sample.reshape(1, nb_steps, state_dim)))
-    np.savetxt('dataset.csv', data.flatten(), delimiter=',', header=str(data.shape))
-    # np.savetxt('dataset_{}.csv'.format(env_name[:-3]), data.flatten(), delimiter=',', header=str(data.shape))
+    np.savetxt('datasets/dataset.csv', data.flatten(), delimiter=',', header=str(data.shape))
+    np.savetxt(dataset_filename, data.flatten(), delimiter=',', header=str(data.shape))
 
 
 def read(filename):
     data = np.genfromtxt(filename, dtype='float', delimiter=',', skip_header=1)
-    with open(filename, 'r') as file:
-        header = file.readline()
+    with open(filename, 'r') as data_file:
+        header = data_file.readline()
     return data.reshape(make_tuple(header[2:]))
 
 
@@ -89,10 +93,12 @@ def get_args():
     parser.add_argument('--env', type=str, default='CartPole-v0')
     parser.add_argument('--batch_size', type=int)
     parser.add_argument('--data', type=str, default='dataset.csv')
+    parser.add_argument('--nb_samples', type=int, default=500)
+    parser.add_argument('--nb_steps', type=int, default=10)
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = get_args()
-    main(args)
-    # main_record()
+    # main(args)
+    record(args.nb_samples, args.nb_steps, args.env)
