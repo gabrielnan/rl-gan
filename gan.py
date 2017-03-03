@@ -98,7 +98,7 @@ def pre_train_discriminator(data, generator, discriminator, batch_size=50):
     discriminator.fit(in_batch, out_batch, nb_epoch=1, batch_size=128)
 
 
-def get_trained_generator(data, batch_size=50, nb_epoch=100, plt_freq=25, save_freq=10, noise_dim=25):
+def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=100, plt_freq=25, save_freq=10):
     # define loss lists
     losses = {'d': [], 'g': []}
     nb_samples, nb_steps, state_dim = data.shape
@@ -158,13 +158,14 @@ def save(generator, discriminator, epoch):
     generator.save_weights('models/generator', True)
     discriminator.save_weights('models/discriminator', True)
     with open('models/last_epoch.txt', 'w') as epoch_file:
-        epoch_file.write(epoch)
+        epoch_file.write(str(epoch))
 
 
 class Generator(object):
-    def __init__(self, data):
-        self.generator = get_trained_generator(data)
+    def __init__(self, data, noise_dim):
+        self.noise_dim = noise_dim
+        self.generator = get_trained_generator(data, noise_dim)
 
     def generate(self, size):
-        noise = get_noise(size)
+        noise = get_noise(size, self.noise_dim)
         return self.generator.predict(noise)

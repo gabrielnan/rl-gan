@@ -17,8 +17,10 @@ def main(args):
     env = gym.make(args.env)
     create_set_state_method(env.__class__)
 
-    gen = gan.Generator(data)
-    sample = gen.generate(1)
+    gen = gan.Generator(data, args.noise_dim)
+    sample = gen.generate(1)[0]
+    print sample.shape
+    print sample
 
     env.reset()
     total_error = compute_error(env, sample)
@@ -103,6 +105,7 @@ def get_args():
     parser.add_argument('--data', type=str, default='datasets/dataset.csv')
     parser.add_argument('--nb_samples', type=int, default=500)
     parser.add_argument('--nb_steps', type=int, default=10)
+    parser.add_argument('--noise_dim', type=int, default=25)
     return parser.parse_args()
 
 
