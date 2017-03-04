@@ -19,12 +19,14 @@ def main(args):
 
     gen = gan.Generator(data, args.noise_dim)
     sample = gen.generate(1)[0]
-    print sample.shape
     print sample
 
     env.reset()
     total_error = compute_error(env, sample)
     print(total_error)
+
+    total_error_random = compute_error(env, np.random.uniform(-1, 1, size=sample.shape))
+    print total_error_random
 
 
 def create_set_state_method(cls):
@@ -38,24 +40,23 @@ def create_set_state_method(cls):
     cls.set_state = set_state
 
 
-def get_generator(data):
-    return gan.get_trained_generator(data)
-
-
 def compute_error(env, sample):
     initial_state = sample[0, :-1]
     total_error = np.zeros(initial_state.shape)
-    action = int(sample[0, -1])
+    action = round_action(int(sample[0, -1]))
     env.set_state(initial_state)
     print(env.state, '=====', initial_state)
 
     for step in sample[1:]:
         env.step(action)
         state = step[:-1]
-        print(env.state, '=====', state)
+        # print(env.state, '\n', state, '\n\n')
         total_error += state_error(env.state, state)
-        action = int(step[-1])
+        action = round_action(int(step[-1]))
     return total_error
+
+def round_action(action):
+    return int(round((action + 1) / 2))
 
 
 def state_error(true_state, pred_state):
@@ -103,9 +104,9 @@ def get_args():
     parser.add_argument('--env', type=str, default='CartPole-v0')
     parser.add_argument('--batch_size', type=int)
     parser.add_argument('--data', type=str, default='datasets/dataset.csv')
-    parser.add_argument('--nb_samples', type=int, default=500)
+    parser.add_argument('--nb_samples', type=int, default=2000)
     parser.add_argument('--nb_steps', type=int, default=10)
-    parser.add_argument('--noise_dim', type=int, default=25)
+    parser.add_argument('--noise_dim', type=int, default=10)
     return parser.parse_args()
 
 
