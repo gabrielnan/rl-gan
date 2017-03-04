@@ -73,7 +73,7 @@ def discriminator_conv_model(nb_steps, state_dim):
 
 def discriminator_dense_model(nb_steps, state_dim):
     model = Sequential()
-    model.add(Reshape((nb_steps * state_dim), input_shape=(nb_steps, state_dim)))
+    model.add(Reshape((nb_steps * state_dim,), input_shape=(nb_steps, state_dim)))
     model.add(Dense(input_dim=(nb_steps, state_dim), output_dim=100))
     model.add(Activation('relu'))
     model.add(Dense(100))
@@ -137,8 +137,9 @@ def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1000, plt_fre
     nb_samples, nb_steps, state_dim = data.shape
 
     # create models
-    generator = generator_conv_model(nb_steps, state_dim, noise_dim)
-    discriminator = discriminator_conv_model(nb_steps, state_dim)
+    model_args = [nb_steps, state_dim, noise_dim]
+    generator = generator_conv_model(*model_args) if conv else generator_dense_model(*model_args)
+    discriminator = discriminator_conv_model(*model_args[:-1]) if conv else discriminator_dense_model(*model_args[:-1])
 
     # reload models if exist
     initial_epoch = 0
@@ -184,7 +185,7 @@ def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1000, plt_fre
         if epoch % plt_freq == plt_freq - 1:
             plot_loss(losses)
 
-    save(generator, discriminator, nb_epoch)
+    save(generator, discriminator, nb_epoch, conv)
     return generator
 
 
@@ -207,7 +208,7 @@ def save(generator, discriminator, epoch, conv):
 class Generator(object):
     def __init__(self, data, noise_dim):
         self.noise_dim = noise_dim
-        self.generator = get_trained_generator(data, noise_dim, use_old=False)
+        self.generator = get_trained_generator(data, noise_dim, use_old=False, conv=False)
 
     def generate(self, size):
         noise = get_noise(size, self.noise_dim)
