@@ -23,7 +23,7 @@ def generator_conv_model(nb_steps, state_dim, noise_dim):
     model.add(Convolution2D(40, conv_length, 1, border_mode='same'))
     model.add(Activation('tanh'))
     model.add(Convolution2D(1, conv_length, 1, border_mode='same'))
-    model.add(Activation('tanh'))
+    model.add(Activation('linear'))
     model.add(Reshape((nb_steps, state_dim)))
     # print model.summary()
 
@@ -37,12 +37,14 @@ def generator_conv_model(nb_steps, state_dim, noise_dim):
 
 def generator_dense_model(nb_steps, state_dim, noise_dim):
     model = Sequential()
-    model.add(Dense(input_dim=noise_dim, output_dim=50))
-    model.add(Activation('relu'))
+    model.add(Dense(50, input_dim=noise_dim))
+    model.add(Activation('tanh'))
     model.add(Dense(100))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
+    model.add(Dense(100))
+    model.add(Activation('tanh'))
     model.add(Dense(nb_steps * state_dim))
-    model.add(Activation('sigmoid'))
+    model.add(Activation('linear'))
     model.add(Reshape((nb_steps, state_dim)))
 
     opt = Adam(lr=1e-4)
@@ -75,9 +77,11 @@ def discriminator_dense_model(nb_steps, state_dim):
     model = Sequential()
     model.add(Reshape((nb_steps * state_dim,), input_shape=(nb_steps, state_dim)))
     model.add(Dense(input_dim=(nb_steps, state_dim), output_dim=100))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
     model.add(Dense(100))
-    model.add(Activation('relu'))
+    model.add(Activation('tanh'))
+    model.add(Dense(100))
+    model.add(Activation('tanh'))
     model.add(Dense(1))
     model.add(Activation('sigmoid'))
 
@@ -100,7 +104,7 @@ def check_dirs(directory):
         os.makedirs(directory)
 
 
-def plot_loss(losses):
+def plot_loss(losses, shape, conv):
     fig = plt.figure(figsize=(10, 8))
     plt.plot(losses['d'], label='discriminative loss')
     plt.plot(losses['g'], label='generative loss')
@@ -108,8 +112,10 @@ def plot_loss(losses):
     plt.show()
     timer = fig.canvas.new_timer(interval=2000)
     timer.add_callback(close)
+
+    # name and save
     check_dirs('plots')
-    fig.savefig('plots/plot.png')
+    fig.savefig('plots/plot_{}{}.png'.format(shape, '_conv' if conv else ''))
     timer.start()
 
 
@@ -130,7 +136,7 @@ def pre_train_discriminator(data, generator, discriminator, batch_size=50):
     discriminator.fit(in_batch, out_batch, nb_epoch=1, batch_size=128)
 
 
-def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1000, plt_freq=100, save_freq=10, use_old=False,
+def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=5000, plt_freq=100, save_freq=100, use_old=False,
                           conv=True):
     # define loss lists
     losses = {'d': [], 'g': []}
@@ -144,7 +150,7 @@ def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1000, plt_fre
     # reload models if exist
     initial_epoch = 0
     check_dirs('models')
-    gen_dir, disc_dir, epoch_dir = get_filenames(conv)
+    gen_dir, disc_dir, epoch_dir = get_filenames(data.shape, conv)
     if use_old and os.path.isfile(gen_dir) and os.path.isfile(disc_dir):
         generator.load_weights(gen_dir)
         discriminator.load_weights(disc_dir)
@@ -181,24 +187,29 @@ def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1000, plt_fre
         discriminator.trainable = True
 
         if epoch % save_freq == save_freq - 1:
-            save(generator, discriminator, epoch, conv)
-        if epoch % plt_freq == plt_freq - 1:
-            plot_loss(losses)
+            save(generator, discriminator, epoch, data.shape, conv)
+            # if epoch % plt_freq == plt_freq - 1:
+            #     plot_loss(losses)
 
-    save(generator, discriminator, nb_epoch, conv)
+    plot_loss(losses, data.shape, conv)
+    save(generator, discriminator, nb_epoch, data.shape, conv)
     return generator
 
 
-def get_filenames(conv):
-    file_ext = ('_conv' if conv else '')
+def get_ext(shape, conv):
+    return '_{}{}'.format(shape, '_conv' if conv else '')
+
+
+def get_filenames(shape, conv):
+    file_ext = get_ext(shape, conv)
     gen_dir = 'models/generator' + file_ext
     disc_dir = 'models/discriminator' + file_ext
-    epoch_dir = 'models/last_epoch' + file_ext + '.txt'
+    epoch_dir = 'models/last_epoch{}.txt'.format(file_ext)
     return gen_dir, disc_dir, epoch_dir
 
 
-def save(generator, discriminator, epoch, conv):
-    gen_dir, disc_dir, epoch_dir = get_filenames(conv)
+def save(generator, discriminator, epoch, shape, conv):
+    gen_dir, disc_dir, epoch_dir = get_filenames(shape, conv)
     generator.save_weights(gen_dir, True)
     discriminator.save_weights(disc_dir, True)
     with open(epoch_dir, 'w') as epoch_file:
@@ -208,7 +219,7 @@ def save(generator, discriminator, epoch, conv):
 class Generator(object):
     def __init__(self, data, noise_dim):
         self.noise_dim = noise_dim
-        self.generator = get_trained_generator(data, noise_dim, use_old=False, conv=False)
+        self.generator = get_trained_generator(data, noise_dim, use_old=True, conv=True)
 
     def generate(self, size):
         noise = get_noise(size, self.noise_dim)
