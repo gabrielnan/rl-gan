@@ -23,10 +23,13 @@ def main(args):
 
     env.reset()
     total_error = dataset_error(env, samples)
-    print('Avg Error:', total_error)
+    print('Avg Error:', list(total_error))
+    # print(samples[0])
 
-    total_error_random = dataset_error(env, np.random.uniform(-1, 1, size=samples.shape))
-    print('Avg Random Error:', total_error_random)
+    random_samples = np.random.uniform(-1, 1, size=samples.shape)
+    random_total_error = dataset_error(env, random_samples)
+    print('Avg Random Error:', list(random_total_error))
+    # print(random_samples[0])
 
 
 def create_set_state_method(cls):
@@ -49,14 +52,14 @@ def dataset_error(env, data):
 
 
 def round_actions(sample):
-    sample[:, -1] = np.round(1 / (1 + np.exp(sample[:, 1])))
-    return sample.astype(int)
+    sample[:, -1] = np.round(1 / (1 + np.exp(sample[:, -1])))
+    return sample
 
 
 def sample_error(env, sample):
     initial_state = sample[0, :-1]
     total_error = np.zeros(initial_state.shape)
-    action = sample[0, -1]
+    action = int(sample[0, -1])
     env.set_state(initial_state)
     # print(env.state, '=====', initial_state)
 
@@ -64,9 +67,10 @@ def sample_error(env, sample):
         env.step(action)
         state = step[:-1]
         # print(env.state, '\n', state, '\n\n')
-        total_error += state_error(env.state, state)
-        action = step[-1]
-    return total_error / len(sample[1:])
+        step_error = state_error(env.state, state)
+        total_error += step_error
+        action = int(step[-1])
+    return total_error
 
 
 def state_error(true_state, pred_state):

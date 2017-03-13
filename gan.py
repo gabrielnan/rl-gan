@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from keras.models import Sequential
 from keras.layers import Dense, Reshape, BatchNormalization, Convolution1D, UpSampling2D, Convolution2D, UpSampling1D
-from keras.layers.core import Activation, Flatten
+from keras.layers.core import Activation, Flatten, Lambda
 from keras.optimizers import SGD, Adam
 
 # constants
@@ -25,6 +25,7 @@ def generator_conv_model(nb_steps, state_dim, noise_dim):
     model.add(Convolution2D(1, conv_length, 1, border_mode='same'))
     model.add(Activation('linear'))
     model.add(Reshape((nb_steps, state_dim)))
+    model.add(Lambda(round_actions))
     # print model.summary()
 
     optimizer = SGD(lr=0.005, momentum=0.9, nesterov=True)
@@ -46,10 +47,16 @@ def generator_dense_model(nb_steps, state_dim, noise_dim):
     model.add(Dense(nb_steps * state_dim))
     model.add(Activation('linear'))
     model.add(Reshape((nb_steps, state_dim)))
+    # model.add(Lambda(round_actions))
 
     opt = Adam(lr=1e-4)
     model.compile(loss='binary_crossentropy', optimizer=opt)
     return model
+
+
+def round_actions(x):
+    x[:, -1] = np.round(1 / (1 + np.exp(x[:, -1])))
+    return x.astype(int)
 
 
 def discriminator_conv_model(nb_steps, state_dim):
@@ -136,7 +143,7 @@ def pre_train_discriminator(data, generator, discriminator, batch_size=50):
     discriminator.fit(in_batch, out_batch, nb_epoch=1, batch_size=128)
 
 
-def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=5000, plt_freq=100, save_freq=100, use_old=False,
+def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=1200, plt_freq=100, save_freq=100, use_old=False,
                           conv=True):
     # define loss lists
     losses = {'d': [], 'g': []}
@@ -191,7 +198,8 @@ def get_trained_generator(data, noise_dim, batch_size=50, nb_epoch=5000, plt_fre
             # if epoch % plt_freq == plt_freq - 1:
             #     plot_loss(losses)
 
-    plot_loss(losses, data.shape, conv)
+    if not use_old:
+        plot_loss(losses, data.shape, conv)
     save(generator, discriminator, nb_epoch, data.shape, conv)
     return generator
 
@@ -219,7 +227,7 @@ def save(generator, discriminator, epoch, shape, conv):
 class Generator(object):
     def __init__(self, data, noise_dim):
         self.noise_dim = noise_dim
-        self.generator = get_trained_generator(data, noise_dim, use_old=True, conv=True)
+        self.generator = get_trained_generator(data, noise_dim, use_old=True, conv=False)
 
     def generate(self, size):
         noise = get_noise(size, self.noise_dim)
