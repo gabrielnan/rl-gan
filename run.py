@@ -18,7 +18,7 @@ def main(args):
     create_set_state_method(env.__class__)
 
     gen = gan.Generator(data, args.noise_dim)
-    samples = gen.generate(100)
+    samples = gen.generate(1000)
     # print sample
 
     env.reset()
@@ -47,7 +47,7 @@ def dataset_error(env, data):
     total_error = 0
     for sample in data:
         sample = round_actions(sample)
-        total_error += sample_error(env, sample)
+        total_error += sample_norm_MSE(env, sample)
     return total_error / len(data)
 
 
@@ -73,6 +73,12 @@ def sample_error(env, sample):
     return total_error
 
 
+def sample_norm_MSE(env, sample):
+    total_error = sample_error(env, sample)
+    state_range = np.max(sample[:, :-1], axis=0) - np.min(sample[:, :-1], axis=0)
+    return total_error / state_range
+
+
 def state_error(true_state, pred_state):
     return np.abs(true_state - pred_state)
 
@@ -81,16 +87,31 @@ def format_dataset_name(env_name, shape):
     return '{}_{}_dataset.csv'.format(env_name, shape)
 
 
-def record(nb_samples, nb_steps, env_name):
+def record(nb_samples, nb_steps, env_name, extend_steps=False, nb_max_steps=200):
     # Check for directories
     check_dirs('datasets')
     dataset_filename = 'datasets/' + format_dataset_name(env_name, (nb_samples, nb_steps))
     if os.path.isfile(dataset_filename):
+        # TODO idk lol
         pass
 
     env = gym.make(env_name)
     state_dim = len(env.reset()) + 1
 
+    if extend_steps:
+        nb_max_steps = int(nb_max_steps / nb_steps) * nb_steps
+        nb_traj_samples = int(np.ceil(float(nb_samples) * nb_steps / nb_max_steps))
+        data = get_data(env, nb_traj_samples, nb_max_steps, state_dim)
+        data = data.flatten()[:nb_samples * nb_steps * state_dim]
+        data = data.reshape((nb_samples, nb_steps, state_dim))
+    else:
+        data = get_data(env, nb_samples, nb_steps, state_dim)
+
+    np.savetxt('datasets/dataset.csv', data.flatten(), delimiter=',', header=str(data.shape))
+    np.savetxt(dataset_filename, data.flatten(), delimiter=',', header=str(data.shape))
+
+
+def get_data(env, nb_samples, nb_steps, state_dim):
     data = np.array([]).reshape(0, nb_steps, state_dim)
 
     for _ in tqdm(range(nb_samples)):
@@ -102,8 +123,7 @@ def record(nb_samples, nb_steps, env_name):
             sample = np.vstack((sample, step))
             step = env.step(action)[0]
         data = np.vstack((data, sample.reshape(1, nb_steps, state_dim)))
-    np.savetxt('datasets/dataset.csv', data.flatten(), delimiter=',', header=str(data.shape))
-    np.savetxt(dataset_filename, data.flatten(), delimiter=',', header=str(data.shape))
+    return data
 
 
 def read(filename):
@@ -119,7 +139,7 @@ def get_args():
     parser.add_argument('--batch_size', type=int)
     parser.add_argument('--data', type=str, default='datasets/dataset.csv')
     parser.add_argument('--nb_samples', type=int, default=10000)
-    parser.add_argument('--nb_steps', type=int, default=2)
+    parser.add_argument('--nb_steps', type=int, default=6)
     parser.add_argument('--noise_dim', type=int, default=10)
     return parser.parse_args()
 
@@ -127,4 +147,4 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     main(args)
-    # record(args.nb_samples, args.nb_steps, args.env)
+    # record(args.nb_samples, args.nb_steps, args.env, extend_steps=True)
